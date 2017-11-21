@@ -30,19 +30,36 @@ func (t *TenhouLocalStorage) Scan(src interface{}) error {
 	return json.Unmarshal(value, t)
 }
 
-func scrapeLogs(path string, logs chan TenhouLocalStorage, errors chan error) {
+func scrapeLogs(path string, logs chan TenhouLocalStorage, errChan chan error) {
 	defer close(logs)
 
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
-		errors <- err
+		errChan <- err
 		return
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT value FROM webappsstore2 WHERE scope LIKE 'ten.uohnet%' AND key LIKE 'log%' AND key IS NOT 'lognext';")
+	var table_name string
+	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type = 'table' LIMIT 1;").Scan(&table_name)
+	switch {
+	case err == sql.ErrNoRows:
+		err = errors.New("Specified SQLite database does not contain any tables.")
+		fallthrough
+	case err != nil:
+		errChan <- err
+		return
+	}
+
+	var rows *sql.Rows
+	switch {
+	case table_name == "webappsstore2":
+		rows, err = db.Query("SELECT value FROM webappsstore2 WHERE scope LIKE 'ten.uohnet%' AND key LIKE 'log%' AND key IS NOT 'lognext';")
+	case table_name == "ItemTable":
+		rows, err = db.Query("SELECT CAST(value as TEXT) FROM ItemTable WHERE key LIKE 'log%' AND key IS NOT 'lognext';")
+	}
 	if err != nil {
-		errors <- err
+		errChan <- err
 		return
 	}
 	defer rows.Close()
@@ -50,13 +67,13 @@ func scrapeLogs(path string, logs chan TenhouLocalStorage, errors chan error) {
 	for rows.Next() {
 		var value TenhouLocalStorage
 		if err = rows.Scan(&value); err != nil {
-			errors <- err
+			errChan <- err
 			return
 		}
 		logs <- value
 	}
 	if err = rows.Err(); err != nil {
-		errors <- err
+		errChan <- err
 		return
 	}
 }
@@ -116,14 +133,14 @@ func readUserLog(userLogs *map[string]LogSet, pathname string, user string) (Log
 	return (*userLogs)[user], nil
 }
 
-func writeLogs(path string, logs chan TenhouLocalStorage, errors chan error, done chan int) {
+func writeLogs(path string, logs chan TenhouLocalStorage, errChan chan error, done chan int) {
 	var userLogs map[string]LogSet = make(map[string]LogSet, 5)
 
 	defer func() {
 		for user, logData := range userLogs {
 			err := writeUserLog(logData, path, user)
 			if err != nil {
-				errors <- err
+				errChan <- err
 			}
 		}
 		done <- 1
@@ -132,12 +149,12 @@ func writeLogs(path string, logs chan TenhouLocalStorage, errors chan error, don
 	for logItem := range logs {
 		logData, err := readUserLog(&userLogs, path, logItem.Users[0])
 		if err != nil {
-			errors <- err
+			errChan <- err
 			return
 		}
 		b, err := json.Marshal(logItem)
 		if err != nil {
-			errors <- err
+			errChan <- err
 			return
 		}
 		logData[string(b)] = true
