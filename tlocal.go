@@ -79,7 +79,7 @@ func scrapeLogs(path string, logs chan TenhouLocalStorage, errChan chan error) {
 }
 
 func writeUserLog(logData LogSet, pathname string, user string) error {
-	fPath := path.Join(pathname, user, "localLogs.index")
+	fPath := path.Join(pathname, "user", user, "localLogs.index")
 	file, err := os.OpenFile(fPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if os.IsNotExist(err) {
 		os.MkdirAll(path.Dir(fPath), 0755)
@@ -106,7 +106,7 @@ func writeUserLog(logData LogSet, pathname string, user string) error {
 func readUserLog(userLogs *map[string]LogSet, pathname string, user string) (LogSet, error) {
 	if _, ok := (*userLogs)[user]; !ok {
 		var logs LogSet
-		fPath := path.Join(pathname, user, "localLogs.index")
+		fPath := path.Join(pathname, "user", user, "localLogs.index")
 		file, err := os.Open(fPath)
 		if os.IsNotExist(err) {
 			logs = make(LogSet)
