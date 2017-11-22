@@ -82,7 +82,10 @@ func writeUserLog(logData LogSet, pathname string, user string) error {
 	fPath := path.Join(pathname, "user", user, "localLogs.index")
 	file, err := os.OpenFile(fPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if os.IsNotExist(err) {
-		os.MkdirAll(path.Dir(fPath), 0755)
+		err = os.MkdirAll(path.Dir(fPath), 0755)
+		if err != nil {
+			return err
+		}
 		return writeUserLog(logData, pathname, user)
 	} else if err != nil {
 		return err

@@ -39,11 +39,23 @@ func scrape(args []string) (err error) {
 
 func fetch(args []string) error {
 	if len(args) != 1 {
-		return errors.New("usage: grue fetch <tenhou_id>")
+		return errors.New("usage: grue fetch <log_root>")
 	}
-	// var id string = args[0]
-	// TODO: do things
-	return nil
+
+	var path string = args[0]
+	var logs chan logInfo = make(chan logInfo, 10)
+	var errors chan error = make(chan error)
+	var finished chan int = make(chan int, 1)
+
+	go readLogNames(path, logs, errors)
+	go fetchGameLogs(path, logs, errors, finished)
+
+	select {
+	case err := <-errors:
+		return err
+	case <-finished:
+		return nil
+	}
 }
 
 func main() {

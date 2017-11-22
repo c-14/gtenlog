@@ -15,6 +15,12 @@ Current Status:
 
 ## Usage
 
+* Scrape logs from Browser/App database
 ```
 gtenlog scrape <webappstore.sqlite> <output_path>
+```
+
+* Fetch details from tenhou.net for scraped logs
+```
+gtenlog fetch <log_root>
 ```
