@@ -13,7 +13,7 @@ func usage() string {
 
 Subcommands:
 	scrape <webappstore.sqlite> <output_path>
-	fetch <tenhou_id>`
+	fetch <log_root>`
 }
 
 func scrape(args []string) (err error) {
