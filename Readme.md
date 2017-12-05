@@ -22,5 +22,10 @@ gtenlog scrape <webappstore.sqlite> <output_path>
 
 * Fetch details from tenhou.net for scraped logs
 ```
-gtenlog fetch <log_root>
+gtenlog fetch user <log_root>
+```
+
+* Fetch archived logs for the past 9 days
+```
+gtenlog fetch daily <log_root>
 ```

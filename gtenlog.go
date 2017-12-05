@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 )
@@ -13,7 +14,7 @@ func usage() string {
 
 Subcommands:
 	scrape <webappstore.sqlite> <output_path>
-	fetch <log_root>`
+	fetch <fetchType> <log_root> [-s <date>] [-e <date>]`
 }
 
 func scrape(args []string) (err error) {
@@ -38,23 +39,58 @@ func scrape(args []string) (err error) {
 }
 
 func fetch(args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: grue fetch <log_root>")
+	if len(args) < 2 {
+		return errors.New("usage: grue fetch <fetchType> <log_root> [-s <date>] [-e <date>]")
 	}
 
-	var path string = args[0]
+	var fetchType string = args[0]
+	var path string = args[1]
+	var startDate string
+	var endDate string
+
+	var fetchFlags = flag.NewFlagSet("fetch", flag.ExitOnError)
+	fetchFlags.StringVar(&startDate, "s", getDefaultStartDate(), "First date for which to download daily logs")
+	fetchFlags.StringVar(&endDate, "e", getDefaultEndDate(), "Last date for which to download daily logs")
+	err := fetchFlags.Parse(args[2:])
+	if err != nil {
+		return err
+	}
+
 	var logs chan logInfo = make(chan logInfo, 10)
-	var errors chan error = make(chan error)
+	var errChan chan error = make(chan error)
 	var finished chan int = make(chan int, 1)
 
-	go readLogNames(path, logs, errors)
-	go fetchGameLogs(path, logs, errors, finished)
+	var done int = 1
+	conn := setupHTTP()
+	switch {
+	case fetchType == "user":
+		go readLogNames(path, logs, errChan)
+		go fetchGameLogs(conn, path, logs, errChan, finished)
+	case fetchType == "daily":
+		go fetchSCA(conn, path, startDate, endDate, errChan, finished)
+	case fetchType == "yearly":
+		go fetchSCRAW(conn, path, errChan, finished)
+	case fetchType == "all":
+		go readLogNames(path, logs, errChan)
+		go fetchGameLogs(conn, path, logs, errChan, finished)
+		go fetchSCA(conn, path, startDate, endDate, errChan, finished)
+		go fetchSCRAW(conn, path, errChan, finished)
+		done = 3
+	default:
+		return errors.New("fetchType must be one of [user, daily, yearly, all]")
+	}
 
-	select {
-	case err := <-errors:
-		return err
-	case <-finished:
-		return nil
+	for {
+		if done == 0 {
+			return nil
+		}
+		select {
+		case err := <-errChan:
+			// fmt.Fprintln(os.Stderr, err)
+			return err
+		case <-finished:
+			done--
+		}
 	}
 }
 
