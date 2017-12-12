@@ -67,13 +67,13 @@ func fetch(args []string) error {
 		go readLogNames(path, logs, errChan)
 		go fetchGameLogs(conn, path, logs, errChan, finished)
 	case fetchType == "daily":
-		go fetchSCA(conn, path, startDate, endDate, errChan, finished)
+		go fetchSCx(conn, path, startDate, endDate, errChan, finished)
 	case fetchType == "yearly":
 		go fetchSCRAW(conn, path, errChan, finished)
 	case fetchType == "all":
 		go readLogNames(path, logs, errChan)
 		go fetchGameLogs(conn, path, logs, errChan, finished)
-		go fetchSCA(conn, path, startDate, endDate, errChan, finished)
+		go fetchSCx(conn, path, startDate, endDate, errChan, finished)
 		go fetchSCRAW(conn, path, errChan, finished)
 		done = 3
 	default:

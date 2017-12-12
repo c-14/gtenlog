@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -227,7 +228,105 @@ func fetchSCRAW(conn *http.Client, pathRoot string, errChan chan error, done cha
 	}
 }
 
-func fetchSCA(conn *http.Client, pathRoot string, startDate string, endDate string, errChan chan error, done chan int) {
+func getLogList(conn *http.Client, old bool, logList *io.ReadCloser) error {
+	listURL, _ := url.Parse(scrawBase)
+	listURL.Path = path.Join(listURL.Path, "list.cgi")
+	if old {
+		listURL.RawQuery = "old"
+	}
+
+	resp, err := conn.Get(listURL.String())
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return fmt.Errorf("GET request for %s failed: %s", listURL, http.StatusText(resp.StatusCode))
+	}
+
+	*logList = resp.Body
+	return nil
+}
+
+func checkExists(logPath string, rLength int64) (bool, error) {
+	logInfo, err := os.Stat(logPath)
+	if err == nil && logInfo.Mode().IsRegular() {
+		// File exists, check that length matches remote
+		fLength := logInfo.Size()
+		if fLength == rLength {
+			return true, nil
+		}
+		os.Remove(logPath)
+	} else if err == nil {
+		return false, fmt.Errorf("%s not a regular file, aborting.", logPath)
+	} else if err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+	// File doesn't exist
+	return false, nil
+}
+
+func fetchSCxLogs(conn *http.Client, pathRoot string, startDate time.Time, endDate time.Time, japan *time.Location, old bool) error {
+	var logList io.ReadCloser
+	err := getLogList(conn, old, &logList)
+	if err != nil {
+		return err
+	}
+	defer logList.Close()
+
+	parser, err := InitLogListParser(logList)
+	if err != nil {
+		return err
+	}
+	for parser.Scan() {
+		var scx string
+		var date time.Time
+
+		tok := parser.Token()
+		if old {
+			scx = tok.File[5:8]
+			date, err = time.ParseInLocation("20060102", tok.File[8:16], japan)
+		} else {
+			scx = tok.File[:3]
+			date, err = time.ParseInLocation("20060102", tok.File[3:11], japan)
+		}
+		if err != nil {
+			return err
+		}
+
+		if date.Before(startDate) || date.After(endDate) {
+			continue
+		}
+
+		err = os.MkdirAll(filepath.Join(pathRoot, scx, date.Format("2006"), date.Format("01")), 0755)
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
+
+		fName := path.Base(tok.File)
+		logPath := filepath.Join(pathRoot, scx, date.Format("2006"), date.Format("01"), fName)
+		logURL, _ := url.Parse(scrawBase)
+		logURL.Path = path.Join(logURL.Path, "dat", tok.File)
+
+		if exists, err := checkExists(logPath, tok.Size); err != nil {
+			return err
+		} else if exists {
+			continue
+		}
+
+		err = fetchArchivedLog(conn, logPath, logURL.String())
+		if err != nil {
+			return err
+		}
+	}
+	if err = parser.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func fetchSCx(conn *http.Client, pathRoot string, startDate string, endDate string, errChan chan error, done chan int) {
 	defer func() { done <- 1 }()
 
 	japan, err := time.LoadLocation("Japan")
@@ -245,32 +344,28 @@ func fetchSCA(conn *http.Client, pathRoot string, startDate string, endDate stri
 		errChan <- err
 		return
 	}
-	numDays := int(end.Sub(start).Hours() / 24.0)
 
-	for i := 0; i < numDays; i++ {
-		cdate := end.AddDate(0, 0, -i)
-		cYear := cdate.Format("2006")
-		cMonth := cdate.Format("01")
-		cDay := cdate.Format("02")
-		err := os.MkdirAll(filepath.Join(pathRoot, "sca", cYear, cMonth), 0755)
-		if err != nil && !os.IsExist(err) {
-			errChan <- err
-			return
-		}
+	// TODO: check what happens when the year rolls over
+	now := time.Now().In(japan)
+	now = time.Date(now.Year(), now.Month(), now.Day(), 00, 00, 00, 00, japan)
+	if start.Year() < now.Year() {
+		// TODO: need to unpack/fetch scraw files here
+		start = time.Date(now.Year(), 01, 01, 00, 00, 00, 01, japan)
+	}
 
-		fName := fmt.Sprintf("sca%s%s%s.log.gz", cYear, cMonth, cDay)
-		logURL, _ := url.Parse(scrawBase)
-		logPath := filepath.Join(pathRoot, "sca", cYear, cMonth, fName)
-		if cdate.After(end.AddDate(0, 0, -8)) {
-			logURL.Path = path.Join(logURL.Path, "dat", fName)
-		} else {
-			logURL.Path = path.Join(logURL.Path, "dat", cYear, fName)
-		}
-
-		err = fetchArchivedLog(conn, logPath, logURL.String())
-		if err != nil {
-			errChan <- err
-			return
-		}
+	cutoff := now.AddDate(0, 0, -8)
+	if start.Before(cutoff) {
+		err = fetchSCxLogs(conn, pathRoot, start, end, japan, true)
+	}
+	if err != nil {
+		errChan <- err
+		return
+	}
+	if end.After(cutoff) {
+		err = fetchSCxLogs(conn, pathRoot, start, end, japan, false)
+	}
+	if err != nil {
+		errChan <- err
+		return
 	}
 }
