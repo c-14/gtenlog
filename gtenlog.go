@@ -10,11 +10,12 @@ import (
 const version = "0.1.0-alpha"
 
 func usage() string {
-	return `usage: gtenlog [--help] {scrape|fetch} ...
+	return `usage: gtenlog [--help] {scrape|fetch|aggregate} ...
 
 Subcommands:
 	scrape <webappstore.sqlite> <output_path>
-	fetch <fetchType> <log_root> [-s <date>] [-e <date>]`
+	fetch <fetchType> <log_root> [-s <date>] [-e <date>]
+	aggregate <log_root>`
 }
 
 func scrape(args []string) (err error) {
@@ -105,6 +106,8 @@ func main() {
 		err = scrape(os.Args[2:])
 	case "fetch":
 		err = fetch(os.Args[2:])
+	case "aggregate":
+		err = aggregate(os.Args[2:])
 	case "-v":
 		fallthrough
 	case "--version":

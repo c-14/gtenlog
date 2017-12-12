@@ -350,11 +350,12 @@ func fetchSCx(conn *http.Client, pathRoot string, startDate string, endDate stri
 	now = time.Date(now.Year(), now.Month(), now.Day(), 00, 00, 00, 00, japan)
 	if start.Year() < now.Year() {
 		// TODO: need to unpack/fetch scraw files here
-		start = time.Date(now.Year(), 01, 01, 00, 00, 00, 01, japan)
+		start = time.Date(now.Year(), 01, 01, 00, 00, 00, 00, japan)
 	}
 
 	cutoff := now.AddDate(0, 0, -8)
 	if start.Before(cutoff) {
+		err = aggregateLogs(pathRoot, japan, cutoff)
 		err = fetchSCxLogs(conn, pathRoot, start, end, japan, true)
 	}
 	if err != nil {
