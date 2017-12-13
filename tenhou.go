@@ -254,7 +254,7 @@ func checkExists(logPath string, rLength int64) (bool, error) {
 	if err == nil && logInfo.Mode().IsRegular() {
 		// File exists, check that length matches remote
 		fLength := logInfo.Size()
-		if fLength == rLength {
+		if fLength >= rLength {
 			return true, nil
 		}
 		os.Remove(logPath)

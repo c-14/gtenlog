@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"os"
@@ -34,7 +35,7 @@ func (m *Matches) FindNextSlice(cutoff time.Time, japan *time.Location) bool {
 	if err != nil {
 		m.err = err
 		return false
-	} else if m.date.After(cutoff) {
+	} else if !m.date.Before(cutoff) {
 		return false
 	}
 
@@ -96,7 +97,8 @@ func aggregateLogs(pathRoot string, japan *time.Location, cutoff time.Time) erro
 				return err
 			}
 			defer file.Close()
-			wrLog := bufio.NewWriter(file)
+			gzLog, _ := gzip.NewWriterLevel(file, gzip.BestCompression)
+			wrLog := bufio.NewWriter(gzLog)
 
 			for _, partialLog := range slice {
 				logFile, err := os.Open(partialLog)
@@ -105,14 +107,24 @@ func aggregateLogs(pathRoot string, japan *time.Location, cutoff time.Time) erro
 				}
 				defer logFile.Close()
 
-				_, err = wrLog.ReadFrom(logFile)
+				reader, err := gzip.NewReader(logFile)
+				if err != nil {
+					return err
+				}
+				_, err = wrLog.ReadFrom(reader)
+				if err != nil {
+					return err
+				}
+				err = reader.Close()
 				if err != nil {
 					return err
 				}
 				defer os.Remove(partialLog)
 			}
-			err = wrLog.Flush()
-			if err != nil {
+			if err = wrLog.Flush(); err != nil {
+				return err
+			}
+			if err = gzLog.Close(); err != nil {
 				return err
 			}
 		}
