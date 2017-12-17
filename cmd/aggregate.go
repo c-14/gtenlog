@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"errors"
-	"github.com/c-14/gtenlog/storage"
 	"time"
+
+	"github.com/c-14/gtenlog/storage"
 )
 
-func Aggregate(args []string) (err error) {
+func Aggregate(args []string) error {
 	if len(args) != 1 {
 		return errors.New("usage: grue aggregate <log_root>")
 	}

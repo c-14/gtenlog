@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/c-14/gtenlog/cmd"
 	"os"
+
+	"github.com/c-14/gtenlog/cmd"
 )
 
 const version = "0.1.0-beta"
@@ -14,7 +15,9 @@ func usage() string {
 Subcommands:
 	scrape <webappstore.sqlite> <output_path>
 	fetch <fetchType> <log_root> [-s <date>] [-e <date>]
-	aggregate <log_root>`
+	aggregate <log_root>
+	users <userFile> {add|addAlias|list}
+	`
 }
 
 func main() {
@@ -30,6 +33,10 @@ func main() {
 		err = cmd.Fetch(os.Args[2:])
 	case "aggregate":
 		err = cmd.Aggregate(os.Args[2:])
+	case "grep":
+		err = cmd.Grep(os.Args[2:])
+	case "users":
+		err = cmd.Users(os.Args[2:])
 	case "-v":
 		fallthrough
 	case "--version":
