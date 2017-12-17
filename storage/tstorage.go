@@ -1,8 +1,9 @@
-package main
+package storage
 
 import (
 	"bufio"
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,24 @@ import (
 	"strings"
 	"time"
 )
+
+type TenhouLocalStorage struct {
+	Type     int      `json:"type"`
+	Lobby    int      `json:"lobby"`
+	Log      string   `json:"log"`
+	Position int      `json:"oya"`
+	Users    []string `json:"uname"`
+	Sc       string   `json:"sc"`
+}
+
+func (t *TenhouLocalStorage) Scan(src interface{}) error {
+	value, ok := src.([]byte)
+	if !ok {
+		return errors.New("Incorrect SQLite database or code out of date")
+	}
+
+	return json.Unmarshal(value, t)
+}
 
 type Matches struct {
 	matches []string
@@ -71,9 +90,9 @@ func GetMatches(pathRoot string, scx string) (m Matches, err error) {
 	return
 }
 
-func aggregateLogs(pathRoot string, japan *time.Location, cutoff time.Time) error {
+func (a LogArchive) AggregateLogs(japan *time.Location, cutoff time.Time) error {
 	for _, scx := range []string{"scb", "scc", "scd", "sce"} {
-		matches, err := GetMatches(pathRoot, scx)
+		matches, err := GetMatches(a.PathRoot, scx)
 		if err != nil {
 			return err
 		}
@@ -90,7 +109,7 @@ func aggregateLogs(pathRoot string, japan *time.Location, cutoff time.Time) erro
 			} else {
 				fName = fmt.Sprintf("%s%s.log.gz", scx, date.Format("20060102"))
 			}
-			logPath := filepath.Join(pathRoot, scx, date.Format("2006"), date.Format("01"), fName)
+			logPath := filepath.Join(a.PathRoot, scx, date.Format("2006"), date.Format("01"), fName)
 
 			file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
 			if err != nil {
@@ -133,17 +152,4 @@ func aggregateLogs(pathRoot string, japan *time.Location, cutoff time.Time) erro
 		}
 	}
 	return nil
-}
-
-func aggregate(args []string) (err error) {
-	if len(args) != 1 {
-		return errors.New("usage: grue aggregate <log_root>")
-	}
-	var path string = args[0]
-
-	japan, _ := time.LoadLocation("Japan")
-	now := time.Now().In(japan)
-	now = time.Date(now.Year(), now.Month(), now.Day(), 00, 00, 00, 00, japan)
-
-	return aggregateLogs(path, japan, now.AddDate(0, 0, -8))
 }

@@ -6,7 +6,7 @@ A simple program to fetch logs from tenhou and/or analyze them.
 
 Current Status:
 
-	Release - 0.1.0-alpha
+	Release - 0.1.0-beta
 	Bugs - Probably
 
 ## Download
