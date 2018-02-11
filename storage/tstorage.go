@@ -114,6 +114,70 @@ func isComplete(logPath string, partial []string) (bool, error) {
 	return false, nil
 }
 
+func aggregateSlice(pathRoot, scx string, slice []string, date time.Time) error {
+	var fName string
+	if strings.Compare(scx, "scc") == 0 {
+		fName = fmt.Sprintf("scc%s.html.gz", date.Format("20060102"))
+	} else {
+		fName = fmt.Sprintf("%s%s.log.gz", scx, date.Format("20060102"))
+	}
+	logPath := filepath.Join(pathRoot, scx, date.Format("2006"), date.Format("01"), fName)
+
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+	if os.IsExist(err) {
+		var complete bool
+		complete, err = isComplete(logPath, slice)
+		if err != nil {
+			return err
+		} else if !complete {
+			err = os.Remove(logPath)
+			if err == nil {
+				file, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+			}
+		} else {
+			for _, partialLog := range slice {
+				os.Remove(partialLog)
+			}
+			return nil
+		}
+	}
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	gzLog, _ := gzip.NewWriterLevel(file, gzip.BestCompression)
+	wrLog := bufio.NewWriter(gzLog)
+
+	for _, partialLog := range slice {
+		logFile, err := os.Open(partialLog)
+		if err != nil {
+			return err
+		}
+		defer logFile.Close()
+
+		reader, err := gzip.NewReader(logFile)
+		if err != nil {
+			return err
+		}
+		_, err = wrLog.ReadFrom(reader)
+		if err != nil {
+			return err
+		}
+		err = reader.Close()
+		if err != nil {
+			return err
+		}
+		defer os.Remove(partialLog)
+	}
+	if err = wrLog.Flush(); err != nil {
+		return err
+	}
+	if err = gzLog.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a LogArchive) AggregateLogs(japan *time.Location, cutoff time.Time) error {
 	for _, scx := range []string{"scb", "scc", "scd", "sce"} {
 		matches, err := GetMatches(a.PathRoot, scx)
@@ -126,65 +190,9 @@ func (a LogArchive) AggregateLogs(japan *time.Location, cutoff time.Time) error 
 
 		for matches.FindNextSlice(cutoff, japan) {
 			slice, date := matches.GetSlice()
-
-			var fName string
-			if strings.Compare(scx, "scc") == 0 {
-				fName = fmt.Sprintf("scc%s.html.gz", date.Format("20060102"))
-			} else {
-				fName = fmt.Sprintf("%s%s.log.gz", scx, date.Format("20060102"))
-			}
-			logPath := filepath.Join(a.PathRoot, scx, date.Format("2006"), date.Format("01"), fName)
-
-			file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
-			if os.IsExist(err) {
-				var complete bool
-				complete, err = isComplete(logPath, slice)
-				if err != nil {
-					return err
-				} else if !complete {
-					err = os.Remove(logPath)
-					if err == nil {
-						file, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
-					}
-				} else {
-					for _, partialLog := range slice {
-						os.Remove(partialLog)
-					}
-					continue
-				}
-			}
+			
+			err = aggregateSlice(a.PathRoot, scx, slice, date)
 			if err != nil {
-				return err
-			}
-			defer file.Close()
-			gzLog, _ := gzip.NewWriterLevel(file, gzip.BestCompression)
-			wrLog := bufio.NewWriter(gzLog)
-
-			for _, partialLog := range slice {
-				logFile, err := os.Open(partialLog)
-				if err != nil {
-					return err
-				}
-				defer logFile.Close()
-
-				reader, err := gzip.NewReader(logFile)
-				if err != nil {
-					return err
-				}
-				_, err = wrLog.ReadFrom(reader)
-				if err != nil {
-					return err
-				}
-				err = reader.Close()
-				if err != nil {
-					return err
-				}
-				defer os.Remove(partialLog)
-			}
-			if err = wrLog.Flush(); err != nil {
-				return err
-			}
-			if err = gzLog.Close(); err != nil {
 				return err
 			}
 		}
