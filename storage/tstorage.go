@@ -90,6 +90,30 @@ func GetMatches(pathRoot string, scx string) (m Matches, err error) {
 	return
 }
 
+func isComplete(logPath string, partial []string) (bool, error) {
+	cInfo, err := os.Stat(logPath)
+	if err != nil {
+		return false, err
+	} else if !cInfo.Mode().IsRegular() {
+		return false, fmt.Errorf("%s not a regular file, aborting.", logPath)
+	}
+
+	var tSize int64 = 0
+	for _, partialLog := range partial {
+		pInfo, err := os.Stat(partialLog)
+		if err != nil {
+			return false, err
+		} else if !pInfo.Mode().IsRegular() {
+			return false, fmt.Errorf("%s not a regular file, aborting.", partialLog)
+		}
+		tSize += pInfo.Size()
+	}
+	if cInfo.Size() >= tSize {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (a LogArchive) AggregateLogs(japan *time.Location, cutoff time.Time) error {
 	for _, scx := range []string{"scb", "scc", "scd", "sce"} {
 		matches, err := GetMatches(a.PathRoot, scx)
@@ -112,6 +136,23 @@ func (a LogArchive) AggregateLogs(japan *time.Location, cutoff time.Time) error 
 			logPath := filepath.Join(a.PathRoot, scx, date.Format("2006"), date.Format("01"), fName)
 
 			file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+			if os.IsExist(err) {
+				var complete bool
+				complete, err = isComplete(logPath, slice)
+				if err != nil {
+					return err
+				} else if !complete {
+					err = os.Remove(logPath)
+					if err == nil {
+						file, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+					}
+				} else {
+					for _, partialLog := range slice {
+						os.Remove(partialLog)
+					}
+					continue
+				}
+			}
 			if err != nil {
 				return err
 			}
