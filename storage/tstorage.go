@@ -49,6 +49,10 @@ func (m Matches) Err() error {
 func (m *Matches) FindNextSlice(cutoff time.Time, japan *time.Location) bool {
 	m.low = m.high
 
+	if m.low >= m.length {
+		return false
+	}
+
 	var err error
 	m.date, err = time.ParseInLocation("20060102", filepath.Base(m.matches[m.low])[3:11], japan)
 	if err != nil {
