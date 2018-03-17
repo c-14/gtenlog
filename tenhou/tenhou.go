@@ -123,8 +123,10 @@ func FetchSCRAW(conn *http.Client, archive s.LogArchive, errChan chan error, don
 
 		err := fetchArchivedLog(conn, &logInfo, logURL.String())
 		if err != nil {
-			errChan <- err
-			return
+			if year < currentYear - 1 {
+				errChan <- err
+				return
+			}
 		}
 	}
 }
