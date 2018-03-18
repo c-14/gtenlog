@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -14,17 +14,17 @@ type LogArchive struct {
 }
 
 type SCRAWLogInfo struct {
-	statInfo os.FileInfo
+	statInfo  os.FileInfo
 	existsErr error
-	file *os.File
-	path string
+	file      *os.File
+	path      string
 }
 
 type SCxLogInfo struct {
-	statInfo os.FileInfo
+	statInfo  os.FileInfo
 	existsErr error
-	file *os.File
-	path string
+	file      *os.File
+	path      string
 }
 
 type LogInfo interface {
@@ -75,7 +75,7 @@ func (l SCxLogInfo) Exists() (bool, error) {
 	if l.existsErr == nil && l.statInfo.Mode().IsRegular() {
 		return true, nil
 	} else if l.existsErr == nil {
-		return false, fmt.Errorf("%s not a regular file, aborting.", l.path)
+		return false, fmt.Errorf("%s not a regular file, aborting", l.path)
 	} else if l.existsErr != nil && !os.IsNotExist(l.existsErr) {
 		return false, l.existsErr
 	}
@@ -121,7 +121,7 @@ func (l SCRAWLogInfo) Exists() (bool, error) {
 	if l.existsErr == nil && l.statInfo.Mode().IsRegular() {
 		return true, nil
 	} else if l.existsErr == nil {
-		return false, fmt.Errorf("%s not a regular file, aborting.", l.path)
+		return false, fmt.Errorf("%s not a regular file, aborting", l.path)
 	} else if l.existsErr != nil && !os.IsNotExist(l.existsErr) {
 		return false, l.existsErr
 	}

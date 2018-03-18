@@ -2,8 +2,8 @@ package storage
 
 import (
 	"bufio"
-	"path/filepath"
 	"os"
+	"path/filepath"
 )
 
 type LogSet map[string]bool
@@ -29,7 +29,7 @@ func (l UserLogSet) Write() error {
 	defer file.Close()
 
 	wrLines := bufio.NewWriter(file)
-	for data, _ := range l.Logs {
+	for data := range l.Logs {
 		_, err = wrLines.WriteString(data)
 		if err != nil {
 			return err

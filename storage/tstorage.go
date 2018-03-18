@@ -99,7 +99,7 @@ func isComplete(logPath string, partial []string) (bool, error) {
 	if err != nil {
 		return false, err
 	} else if !cInfo.Mode().IsRegular() {
-		return false, fmt.Errorf("%s not a regular file, aborting.", logPath)
+		return false, fmt.Errorf("%s not a regular file, aborting", logPath)
 	}
 
 	var tSize int64 = 0
@@ -108,7 +108,7 @@ func isComplete(logPath string, partial []string) (bool, error) {
 		if err != nil {
 			return false, err
 		} else if !pInfo.Mode().IsRegular() {
-			return false, fmt.Errorf("%s not a regular file, aborting.", partialLog)
+			return false, fmt.Errorf("%s not a regular file, aborting", partialLog)
 		}
 		tSize += pInfo.Size()
 	}
@@ -194,7 +194,7 @@ func (a LogArchive) AggregateLogs(japan *time.Location, cutoff time.Time) error 
 
 		for matches.FindNextSlice(cutoff, japan) {
 			slice, date := matches.GetSlice()
-			
+
 			err = aggregateSlice(a.PathRoot, scx, slice, date)
 			if err != nil {
 				return err
