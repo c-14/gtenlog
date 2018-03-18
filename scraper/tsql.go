@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	_ "github.com/mattn/go-sqlite3"
-	s "github.com/c-14/gtenlog/storage"
 	"os"
+
+	s "github.com/c-14/gtenlog/storage"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func ScrapeLogs(path string, logs chan s.TenhouLocalStorage, errChan chan error) {
@@ -19,11 +20,11 @@ func ScrapeLogs(path string, logs chan s.TenhouLocalStorage, errChan chan error)
 	}
 	defer db.Close()
 
-	var table_name string
-	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type = 'table' LIMIT 1;").Scan(&table_name)
+	var tableName string
+	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type = 'table' LIMIT 1;").Scan(&tableName)
 	switch {
 	case err == sql.ErrNoRows:
-		err = errors.New("Specified SQLite database does not contain any tables.")
+		err = errors.New("Specified SQLite database does not contain any tables")
 		fallthrough
 	case err != nil:
 		errChan <- err
@@ -32,9 +33,9 @@ func ScrapeLogs(path string, logs chan s.TenhouLocalStorage, errChan chan error)
 
 	var rows *sql.Rows
 	switch {
-	case table_name == "webappsstore2":
+	case tableName == "webappsstore2":
 		rows, err = db.Query("SELECT value FROM webappsstore2 WHERE scope LIKE 'ten.uohnet%' AND key LIKE 'log%' AND key IS NOT 'lognext';")
-	case table_name == "ItemTable":
+	case tableName == "ItemTable":
 		rows, err = db.Query("SELECT CAST(value as TEXT) FROM ItemTable WHERE key LIKE 'log%' AND key IS NOT 'lognext';")
 	}
 	if err != nil {
