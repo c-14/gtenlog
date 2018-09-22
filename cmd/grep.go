@@ -6,10 +6,26 @@ import (
 	"fmt"
 	"time"
 
+	"encoding/json"
+
 	"github.com/c-14/gtenlog/storage"
 )
 
 var grepUsage error = errors.New("usage: gtenlog grep [-s <date>] [-e <date>] [-a <userFile>] <lobby> <logRoot>")
+
+func outputLogLine(oFormat string, log storage.SCxLogLine) error {
+	switch {
+	case oFormat == "tenhou":
+		fmt.Println(log)
+		return nil
+	case oFormat == "json":
+		j, err := json.Marshal(log)
+		fmt.Println(string(j))
+		return err
+	default:
+		return fmt.Errorf("No such output format, %s", oFormat)
+	}
+}
 
 func Grep(args []string) error {
 	if len(args) < 2 {
@@ -18,11 +34,13 @@ func Grep(args []string) error {
 	var lobby string
 	var startDate, endDate string
 	var userPath string
+	var oFormat string
 
 	var grepFlags = flag.NewFlagSet("grep", flag.ExitOnError)
 	grepFlags.StringVar(&startDate, "s", "2006-07-01", "First date for which to output data")
 	grepFlags.StringVar(&endDate, "e", getDefaultEndDate(), "Last date for which to output data")
 	grepFlags.StringVar(&userPath, "a", "", "Path to json file containing user/alias mapping")
+	grepFlags.StringVar(&oFormat, "f", "tenhou", "Format used to output results [tenhou/json]")
 	err := grepFlags.Parse(args)
 	if err != nil {
 		return err
@@ -49,5 +67,23 @@ func Grep(args []string) error {
 		return fmt.Errorf("Failed to parse endDate: %s", err)
 	}
 
-	return archive.GrepLogs(lobby, users, start, end)
+	var logs chan storage.SCxLogLine = make(chan storage.SCxLogLine, 10)
+	var errChan chan error = make(chan error)
+	var finished chan int = make(chan int, 1)
+
+	go archive.GrepLogs(lobby, users, start, end, logs, errChan, finished)
+
+	for {
+		select {
+		case logLine := <-logs:
+			err = outputLogLine(oFormat, logLine)
+			if err != nil {
+				return err
+			}
+		case err = <-errChan:
+			return err
+		case <-finished:
+			return nil
+		}
+	}
 }

@@ -22,9 +22,12 @@ func (e walkFileError) IsNotExist() bool {
 	return os.IsNotExist(e.err)
 }
 
-func (a LogArchive) GrepLogs(lobby string, aliases UserListing, startDate time.Time, endDate time.Time) error {
+func (a LogArchive) GrepLogs(lobby string, aliases UserListing, startDate time.Time, endDate time.Time, logs chan SCxLogLine, errChan chan error, done chan int) {
+	defer func() { done <- 1 }()
+
 	if !(lobby[0] == 'L' || lobby[0] == 'l') || len(lobby) != 5 {
-		return fmt.Errorf("Invalid Lobby Format, expecting L[0-9]{4}, got %s", lobby)
+		errChan <- fmt.Errorf("Invalid Lobby Format, expecting L[0-9]{4}, got %s", lobby)
+		return
 	}
 
 	var err error
@@ -72,7 +75,7 @@ func (a LogArchive) GrepLogs(lobby string, aliases UserListing, startDate time.T
 					if !match {
 						continue
 					}
-					fmt.Println(v)
+					logs <- v
 				default:
 					return walkFileError{path, errors.New("Log Type not yet implemented")}
 				}
@@ -85,10 +88,13 @@ func (a LogArchive) GrepLogs(lobby string, aliases UserListing, startDate time.T
 		})
 		if err != nil {
 			if err.(walkFileError).IsNotExist() {
-				return fmt.Errorf("No data for year %v, aborting", strconv.Itoa(y))
+				errChan <- fmt.Errorf("No data for year %v, aborting", strconv.Itoa(y))
 			}
 			break
 		}
 	}
-	return err
+	if err != nil {
+		errChan <- err
+	}
+	return
 }

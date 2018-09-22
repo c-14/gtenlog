@@ -2,14 +2,15 @@ package storage
 
 import (
 	"bufio"
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"compress/gzip"
+	"path/filepath"
 	"unicode/utf8"
 )
 
@@ -27,6 +28,8 @@ type SCxLog struct {
 
 type SCxLogLine interface {
 	Parse(data string, date time.Time) error
+	Clone() SCxLogLine
+	fmt.Stringer
 }
 
 type SCALogLine struct {
@@ -89,7 +92,7 @@ func (ll *SCALogLine) Parse(data string, date time.Time) error {
 	return err
 }
 
-func (ll *SCALogLine) String() string {
+func (ll SCALogLine) String() string {
 	var b strings.Builder
 	b.WriteString(ll.Lobby)
 	b.WriteString(" | ")
@@ -105,6 +108,11 @@ func (ll *SCALogLine) String() string {
 		b.WriteByte(')')
 	}
 	return b.String()
+}
+
+func (ll *SCALogLine) Clone() SCxLogLine {
+	tmp := *ll
+	return &tmp
 }
 
 func InitSCxLogParser(path string) (SCxLog, error) {
@@ -181,7 +189,7 @@ func (s SCxLog) Err() error {
 }
 
 func (s SCxLog) Token() SCxLogLine {
-	return s.token
+	return s.token.Clone()
 }
 
 func getNumPlayers(gameMode string) int {
