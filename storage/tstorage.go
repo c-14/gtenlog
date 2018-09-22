@@ -162,11 +162,11 @@ func aggregateSlice(pathRoot, scx string, slice []string, date time.Time) error 
 
 		reader, err := gzip.NewReader(logFile)
 		if err != nil {
-			return err
+			return fmt.Errorf("Corrupt gzip input file: %v (%v)\n", partialLog, err)
 		}
 		_, err = wrLog.ReadFrom(reader)
 		if err != nil {
-			return err
+			return fmt.Errorf("Could not read from gzip input file: %v (%v)\n", partialLog, err)
 		}
 		err = reader.Close()
 		if err != nil {
