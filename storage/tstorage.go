@@ -171,7 +171,7 @@ func aggregateSlice(pathRoot, scx string, slice []string, date time.Time) error 
 		if err != nil {
 			return err
 		}
-		defer os.Remove(partialLog)
+		os.Remove(partialLog)
 	}
 	if err = wrLog.Flush(); err != nil {
 		return err
