@@ -112,7 +112,8 @@ func isComplete(logPath string, partial []string) (bool, error) {
 		}
 		tSize += pInfo.Size()
 	}
-	if cInfo.Size() >= tSize {
+	cSize := cInfo.Size()
+	if tSize * 95 / 100 <= cSize && cSize <= tSize * 105 / 100 {
 		return true, nil
 	}
 	return false, nil
