@@ -73,7 +73,7 @@ func (a LogArchive) GrepLogs(lobby string, aliases UserListing, startDate time.T
 					}
 					logs <- v
 				default:
-					return walkFileError{path, errors.New("Log Type not yet implemented")}
+					return walkFileError{path, errors.New("Support for Log Type not yet implemented")}
 				}
 			}
 			if err = scxLog.Err(); err != nil {
