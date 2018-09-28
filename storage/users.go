@@ -11,8 +11,8 @@ import (
 type UserStorage map[string][]string
 
 type UserListing struct {
-	Users    map[string]struct{}
-	AliasMap map[string]string
+	users    map[string]struct{}
+	aliasMap map[string]string
 }
 
 func (us *UserStorage) Read(path string) error {
@@ -71,14 +71,29 @@ func (us UserStorage) String() string {
 	return b.String()
 }
 
+func (ul UserListing) User(userName string) (string, bool) {
+	if len(ul.users) == 0 {
+		return userName, true
+	}
+
+	name, ok := ul.aliasMap[userName]
+	if !ok {
+		name = userName
+	}
+
+	_, ok = ul.users[name]
+
+	return name, ok
+}
+
 func (ul *UserListing) Parse(as UserStorage) {
-	ul.Users = make(map[string]struct{})
-	ul.AliasMap = make(map[string]string)
+	ul.users = make(map[string]struct{})
+	ul.aliasMap = make(map[string]string)
 
 	for k, v := range as {
-		ul.Users[k] = struct{}{}
+		ul.users[k] = struct{}{}
 		for _, alias := range v {
-			ul.AliasMap[alias] = k
+			ul.aliasMap[alias] = k
 		}
 	}
 }

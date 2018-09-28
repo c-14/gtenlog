@@ -62,13 +62,9 @@ func (a LogArchive) GrepLogs(lobby string, aliases UserListing, startDate time.T
 					}
 					match := false
 					for i, score := range(v.Score) {
-						userName, ok := aliases.AliasMap[score.UserName]
-						if !ok {
-							userName = score.UserName
-						} else {
+						userName, ok := aliases.User(score.UserName)
+						if ok {
 							v.Score[i].UserName = userName
-						}
-						if _, ok := aliases.Users[userName]; ok {
 							match = true
 						}
 					}
