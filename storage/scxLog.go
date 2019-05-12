@@ -39,6 +39,13 @@ type SCALogLine struct {
 	Score []UserScore
 }
 
+type SCBLogLine struct {
+	StartTime time.Time
+	Duration string
+	GameMode string
+	Score []UserScore
+}
+
 type UserScore struct {
 	UserName string
 	Score float32
@@ -115,6 +122,49 @@ func (ll *SCALogLine) Clone() SCxLogLine {
 	return &tmp
 }
 
+func (ll *SCBLogLine) Parse(data string, date time.Time) error {
+	fields := strings.Split(data, " | ")
+	if len(fields) != 4 {
+		return fmt.Errorf("Error while parsing line; expected 4 fields, got %v", len(fields))
+	}
+
+	var err error
+	ll.Duration = fields[1]
+	ll.GameMode = fields[2]
+
+	start, err := time.Parse("15:04", fields[0])
+	if err != nil {
+		return err
+	}
+	ll.StartTime = date.Add(time.Hour * time.Duration(start.Hour()) + time.Minute * time.Duration(start.Minute()))
+	ll.Score, err = parseUserScores(fields[3], getNumPlayers(ll.GameMode))
+
+	return err
+}
+
+func (ll SCBLogLine) String() string {
+	var b strings.Builder
+	b.WriteString(ll.StartTime.Format("15:04"))
+	b.WriteString(" | ")
+	b.WriteString(ll.Duration)
+	b.WriteString(" |")
+	b.WriteString(ll.GameMode)
+	b.WriteString(" |")
+	for _, s := range(ll.Score) {
+		b.WriteByte(' ')
+		b.WriteString(s.UserName)
+		b.WriteByte('(')
+		b.WriteString(strconv.FormatFloat(float64(s.Score), 'f', 1, 32))
+		b.WriteByte(')')
+	}
+	return b.String()
+}
+
+func (ll *SCBLogLine) Clone() SCxLogLine {
+	tmp := *ll
+	return &tmp
+}
+
 func InitSCxLogParser(path string) (SCxLog, error) {
 	var s SCxLog
 
@@ -127,6 +177,9 @@ func InitSCxLogParser(path string) (SCxLog, error) {
 	switch scx := basePath[:3]; scx {
 	case "sca":
 		s.token = &SCALogLine{}
+		s.Date, err = time.ParseInLocation("20060102", filepath.Base(path)[3:11], japan)
+	case "scb":
+		s.token = &SCBLogLine{}
 		s.Date, err = time.ParseInLocation("20060102", filepath.Base(path)[3:11], japan)
 	default:
 		return s, fmt.Errorf("Log Type %s not yet implemented", scx)

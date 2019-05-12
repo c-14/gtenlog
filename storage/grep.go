@@ -25,14 +25,18 @@ func (e walkFileError) IsNotExist() bool {
 func (a LogArchive) GrepLogs(lobby string, aliases UserListing, startDate time.Time, endDate time.Time, logs chan SCxLogLine, errChan chan error, done chan int) {
 	defer func() { done <- 1 }()
 
-	if !(lobby[0] == 'L' || lobby[0] == 'l') || len(lobby) != 5 {
+	if !(lobby[0] == 'L') || len(lobby) != 5 {
 		errChan <- fmt.Errorf("Invalid Lobby Format, expecting L[0-9]{4}, got %s", lobby)
 		return
+	}
+	var scx string = "sca"
+	if lobby == "L0000" {
+		scx = "scb"
 	}
 
 	var err error
 	for y := startDate.Year(); y <= endDate.Year(); y++ {
-		err = filepath.Walk(filepath.Join(a.PathRoot, "sca", strconv.Itoa(y)), 
+		err = filepath.Walk(filepath.Join(a.PathRoot, scx, strconv.Itoa(y)), 
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return walkFileError{path, err}
@@ -65,6 +69,18 @@ func (a LogArchive) GrepLogs(lobby string, aliases UserListing, startDate time.T
 						userName, ok := aliases.User(score.UserName)
 						if ok {
 							v.Score[i].UserName = userName
+							match = true
+						}
+					}
+					if !match {
+						continue
+					}
+					logs <- v
+				case *SCBLogLine:
+					match := false
+					for _, score := range(v.Score) {
+						_, ok := aliases.User(score.UserName)
+						if ok {
 							match = true
 						}
 					}
