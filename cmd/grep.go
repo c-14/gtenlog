@@ -20,6 +20,10 @@ func outputLogLine(oFormat string, log storage.SCxLogLine) error {
 		return nil
 	case oFormat == "json":
 		j, err := json.Marshal(log)
+		fmt.Printf("%s", string(j))
+		return err
+	case oFormat == "jsonlines":
+		j, err := json.Marshal(log)
 		fmt.Println(string(j))
 		return err
 	default:
@@ -40,7 +44,7 @@ func Grep(args []string) error {
 	grepFlags.StringVar(&startDate, "s", "2006-07-01", "First date for which to output data")
 	grepFlags.StringVar(&endDate, "e", getDefaultEndDate(), "Last date for which to output data")
 	grepFlags.StringVar(&userPath, "a", "", "Path to json file containing user/alias mapping")
-	grepFlags.StringVar(&oFormat, "f", "tenhou", "Format used to output results [tenhou/json]")
+	grepFlags.StringVar(&oFormat, "f", "tenhou", "Format used to output results [tenhou/json/jsonlines]")
 	err := grepFlags.Parse(args)
 	if err != nil {
 		return err
@@ -73,9 +77,18 @@ func Grep(args []string) error {
 
 	go archive.GrepLogs(lobby, users, start, end, logs, errChan, finished)
 
+	if oFormat == "json" {
+		fmt.Println("[")
+	}
+
+	var first bool = true
 	for {
 		select {
 		case logLine := <-logs:
+			if oFormat == "json" && !first {
+				fmt.Println(",")
+			}
+			first = false
 			err = outputLogLine(oFormat, logLine)
 			if err != nil {
 				return err
@@ -83,6 +96,9 @@ func Grep(args []string) error {
 		case err = <-errChan:
 			return err
 		case <-finished:
+			if oFormat == "json" {
+				fmt.Println("]")
+			}
 			return nil
 		}
 	}
