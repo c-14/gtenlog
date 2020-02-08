@@ -8,7 +8,7 @@ import (
 
 func Scrape(args []string) (err error) {
 	if len(args) != 2 {
-		return errors.New("usage: grue scrape <webappstore.sqlite> <output_path>")
+		return errors.New("usage: gtenlog scrape <webappstore.sqlite> <output_path>")
 	}
 	var db string = args[0]
 	var path string = args[1]
